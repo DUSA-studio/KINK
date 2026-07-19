@@ -4,7 +4,9 @@ export async function POST(request: NextRequest) {
   try {
     const { prompt } = await request.json();
 
-    // Force real Flux call
+    console.log('Prompt received:', prompt);
+
+    // Hardcoded test - always try Flux
     const API_KEY = "bfl_XextsHdaBsh2LsFGjb7K87BI0a0Ttjf9";
 
     const response = await fetch('https://api.bfl.ml/v1/flux-pro', {
@@ -14,17 +16,24 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: prompt || "test image",
+        prompt: prompt || "two women in yoga outfits intense anal play",
         width: 1024,
         height: 768,
       }),
     });
 
-    const data = await response.json();
+    const raw = await response.text();
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = { raw };
+    }
 
     return NextResponse.json({ 
       imageUrl: data.images?.[0]?.url || 'https://picsum.photos/1024/768',
-      raw: data 
+      status: response.status,
+      data 
     });
 
   } catch (e) {
