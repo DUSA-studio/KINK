@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt } = await request.json();
+    const { prompt, tags } = await request.json();
 
-    console.log('Prompt received:', prompt);
+    if (!prompt) {
+      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
+    }
 
-    // Hardcoded test - always try Flux
-    const API_KEY = "bfl_XextsHdaBsh2LsFGjb7K87BI0a0Ttjf9";
+    // === Black Forest Labs Flux API ===
+    const API_KEY = process.env.AI_API_KEY || "bfl_XextsHdaBsh2LsFGjb7K87BI0a0Ttjf9";
 
     const response = await fetch('https://api.bfl.ml/v1/flux-pro', {
       method: 'POST',
@@ -16,27 +18,27 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: prompt || "two women in yoga outfits intense anal play",
+        prompt: prompt,
         width: 1024,
         height: 768,
+        steps: 28,
       }),
     });
 
-    const raw = await response.text();
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      data = { raw };
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Flux API error: ${response.status} - ${errorText}`);
     }
 
+    const data = await response.json();
+
     return NextResponse.json({ 
-      imageUrl: data.images?.[0]?.url || 'https://picsum.photos/1024/768',
-      status: response.status,
-      data 
+      imageUrl: data.images?.[0]?.url || data.image_url || data.url,
+      enhancedPrompt: prompt 
     });
 
-  } catch (e) {
-    return NextResponse.json({ error: e.message, imageUrl: 'https://picsum.photos/1024/768' });
+  } catch (error) {
+    console.error('Generation error:', error);
+    return NextResponse.json({ error: 'Failed to generate image' }, { status: 500 });
   }
 }
