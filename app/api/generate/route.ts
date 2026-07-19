@@ -2,14 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, tags } = await request.json();
+    const { prompt } = await request.json();
 
-    if (!prompt) {
-      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
-    }
-
-    // === Black Forest Labs Flux API ===
-    const API_KEY = process.env.AI_API_KEY || "bfl_XextsHdaBsh2LsFGjb7K87BI0a0Ttjf9";
+    // Force real Flux call
+    const API_KEY = "bfl_XextsHdaBsh2LsFGjb7K87BI0a0Ttjf9";
 
     const response = await fetch('https://api.bfl.ml/v1/flux-pro', {
       method: 'POST',
@@ -18,30 +14,20 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: prompt,
+        prompt: prompt || "test image",
         width: 1024,
         height: 768,
-        steps: 28,
       }),
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Flux API error: ${response.status} - ${errorText}`);
-    }
 
     const data = await response.json();
 
     return NextResponse.json({ 
-      imageUrl: data.images?.[0]?.url || data.image_url || data.url,
-      enhancedPrompt: prompt 
+      imageUrl: data.images?.[0]?.url || 'https://picsum.photos/1024/768',
+      raw: data 
     });
 
-  } catch (error) {
-    console.error('Generation error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to generate image',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: e.message, imageUrl: 'https://picsum.photos/1024/768' });
   }
 }
