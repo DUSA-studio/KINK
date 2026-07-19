@@ -2,21 +2,46 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt } = await request.json();
+    const { prompt, tags } = await request.json();
 
     if (!prompt) {
-      return NextResponse.json({ error: 'Prompt required' }, { status: 400 });
+      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // Placeholder - replace with real API
-    await new Promise(r => setTimeout(r, 1000));
+    // === Black Forest Labs Flux API ===
+    const API_KEY = process.env.AI_API_KEY || "bfl_XextsHdaBsh2LsFGjb7K87BI0a0Ttjf9";
 
-    return NextResponse.json({
-      imageUrl: `https://picsum.photos/1024/768?random=${Date.now()}`,
-      message: 'Placeholder - connect real API for actual generations'
+    const response = await fetch('https://api.bfl.ml/v1/flux-pro', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        width: 1024,
+        height: 768,
+        steps: 28,
+      }),
     });
 
-  } catch (e) {
-    return NextResponse.json({ error: 'Generation failed' }, { status: 500 });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Flux API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    return NextResponse.json({ 
+      imageUrl: data.images?.[0]?.url || data.image_url || data.url,
+      enhancedPrompt: prompt 
+    });
+
+  } catch (error) {
+    console.error('Generation error:', error);
+    return NextResponse.json({ 
+      error: 'Failed to generate image',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
